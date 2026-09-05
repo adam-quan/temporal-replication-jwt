@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 #
-# Regenerates docs/architecture.svg and docs/architecture.png.
+# Regenerates the diagrams in docs/ - both the .svg and the .png of each:
 #
-# The layout lives in docs/architecture.py; edit that, then run this. Rendering
+#   architecture   the whole stack: components, connections, protocols
+#   tokenprovider  how the replication TokenProvider plugin works
+#
+# Each layout lives in docs/<name>.py; edit that, then run this. Rendering
 # happens inside a throwaway container so nothing has to be installed on the
 # host - the only requirements are python3 (to emit the SVG) and Docker (to
 # rasterise it).
@@ -23,13 +26,15 @@ RUN apk add --no-cache rsvg-convert ttf-dejavu font-noto
 DOCKERFILE
 fi
 
-echo "Generating SVG..."
-python3 "$ROOT_DIR/docs/architecture.py"
+for name in architecture tokenprovider; do
+  echo "Generating docs/$name.svg..."
+  python3 "$ROOT_DIR/docs/$name.py"
 
-echo "Rasterising to PNG at ${WIDTH}px wide..."
-docker run --rm -v "$ROOT_DIR/docs:/w" -w /w "$IMAGE" \
-  rsvg-convert -w "$WIDTH" -o architecture.png architecture.svg
+  echo "  rasterising to PNG at ${WIDTH}px wide..."
+  docker run --rm -v "$ROOT_DIR/docs:/w" -w /w "$IMAGE" \
+    rsvg-convert -w "$WIDTH" -o "$name.png" "$name.svg"
+done
 
 echo
 echo "Done:"
-ls -lh "$ROOT_DIR/docs/architecture.svg" "$ROOT_DIR/docs/architecture.png" | awk '{print "  " $9 "  " $5}'
+ls -lh "$ROOT_DIR"/docs/*.svg "$ROOT_DIR"/docs/*.png | awk '{print "  " $9 "  " $5}'

@@ -40,8 +40,9 @@ the frontends validate a JWT on every call. See
 | `scripts/connect-clusters.sh` | joins the clusters and creates a global namespace |
 | `scripts/verify-replication.sh` | the end-to-end check |
 | `scripts/token.sh` | mints an access token; handy inside the admin-tools containers |
-| `docs/architecture.png` | the diagram above (`docs/architecture.svg` is the vector original) |
-| `docs/architecture.py` | its layout; regenerate with `./scripts/render-diagram.sh` |
+| `docs/architecture.png` | the diagram above (`.svg` alongside it is the vector original) |
+| `docs/tokenprovider.png` | how the TokenProvider plugin works, step by step |
+| `docs/*.py` | the diagram layouts; regenerate with `./scripts/render-diagram.sh` |
 
 ## Prerequisites
 
@@ -119,6 +120,8 @@ type TokenProvider interface {
     GetToken(ctx context.Context, rpcAddress string) (token string, err error)
 }
 ```
+
+![How the TokenProvider works](docs/tokenprovider.png)
 
 It is called on **every** outbound cross-cluster RPC, which is why the provider
 caches internally and collapses concurrent refreshes — without that, every
