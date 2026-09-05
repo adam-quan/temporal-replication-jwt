@@ -41,7 +41,8 @@ the frontends validate a JWT on every call. See
 | `scripts/verify-replication.sh` | the end-to-end check |
 | `scripts/token.sh` | mints an access token; handy inside the admin-tools containers |
 | `docs/architecture.png` | the diagram above (`.svg` alongside it is the vector original) |
-| `docs/tokenprovider.png` | how the TokenProvider plugin works, step by step |
+| `docs/tokenprovider-context.png` | the TokenProvider's relationships with everything around it |
+| `docs/tokenprovider.png` | how the TokenProvider works, step by step |
 | `docs/*.py` | the diagram layouts; regenerate with `./scripts/render-diagram.sh` |
 
 ## Prerequisites
@@ -100,6 +101,8 @@ same authorization path as everyone else, carrying a token minted by the
 `TokenProvider`.
 
 ### The TokenProvider
+
+![The TokenProvider in context](docs/tokenprovider-context.png)
 
 A `TokenProvider` is a Go server option, not a config key:
 

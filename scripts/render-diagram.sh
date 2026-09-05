@@ -2,8 +2,9 @@
 #
 # Regenerates the diagrams in docs/ - both the .svg and the .png of each:
 #
-#   architecture   the whole stack: components, connections, protocols
-#   tokenprovider  how the replication TokenProvider plugin works
+#   architecture           the whole stack: components, connections, protocols
+#   tokenprovider-context  the TokenProvider's relationships with everything else
+#   tokenprovider          how the TokenProvider works, step by step
 #
 # Each layout lives in docs/<name>.py; edit that, then run this. Rendering
 # happens inside a throwaway container so nothing has to be installed on the
@@ -26,7 +27,7 @@ RUN apk add --no-cache rsvg-convert ttf-dejavu font-noto
 DOCKERFILE
 fi
 
-for name in architecture tokenprovider; do
+for name in architecture tokenprovider-context tokenprovider; do
   echo "Generating docs/$name.svg..."
   python3 "$ROOT_DIR/docs/$name.py"
 

@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1900" height="1020" viewBox="0 0 1900 1020">
+<rect width="1900" height="1020" fill="#ffffff"/>
+<defs>
+<marker id="a-b3403f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#b3403f"/></marker>
+<marker id="a-3f6fae" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#3f6fae"/></marker>
+<marker id="a-3f8a3f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#3f8a3f"/></marker>
+<marker id="a-d18b1f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#d18b1f"/></marker>
+<marker id="a-7a5ea8" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#7a5ea8"/></marker>
+<marker id="a-8a94a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#8a94a3"/></marker>
+<marker id="a-8a94a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#8a94a3"/></marker>
+</defs>
+<text x="950.0" y="46" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="23" fill="#1f2933" font-weight="bold" text-anchor="middle">The TokenProvider plugin in context</text>
+<text x="950.0" y="74" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="12.5" fill="#5b6672" font-weight="normal" text-anchor="middle">One object, five relationships: something builds it, an interface constrains it, the RPC layer consumes it, an IdP supplies it, and a peer cluster trusts what it produces.</text>
+<rect x="660" y="415" width="560" height="230" rx="14" ry="14" fill="#fdf2f2" stroke="#b3403f" stroke-width="3.0"/>
+<text x="940.0" y="449" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="19" fill="#8c2f2e" font-weight="bold" text-anchor="middle">TokenProvider</text>
+<text x="940.0" y="468" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.6" fill="#5b6672" font-weight="normal" text-anchor="middle">server/tokenprovider.go — compiled into the server binary</text>
+<rect x="684" y="481" width="512" height="46" rx="8" ry="8" fill="#ffffff" stroke="#b3403f" stroke-width="1.4"/>
+<text x="940.0" y="500" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="10.5" fill="#8c2f2e" font-weight="bold" text-anchor="middle">implements  auth.TokenProvider</text>
+<text x="940.0" y="516" font-family="DejaVu Sans Mono, Menlo, monospace" font-size="9.2" fill="#5b6672" font-weight="normal" text-anchor="middle">GetToken(ctx, rpcAddress) (string, error)</text>
+<text x="688" y="551" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.6" fill="#5b6672" font-weight="normal" text-anchor="start">It owns the whole token lifecycle:</text>
+<text x="700" y="569" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">•  caches until refreshSkew before expiry</text>
+<text x="700" y="584" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">•  collapses concurrent refreshes into one request</text>
+<text x="700" y="599" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">•  one instance shared by every remote cluster</text>
+<text x="688" y="624" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="8.8" fill="#8a94a3" font-weight="normal" text-anchor="start">rpcAddress is passed but unused — the peers share one identity.</text>
+<rect x="660" y="130" width="560" height="235" rx="16" ry="16" fill="#f7fafd" stroke="#3f6fae" stroke-width="1.8" stroke-dasharray="7 4"/>
+<text x="676" y="152" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="10.5" fill="#3f6fae" font-weight="bold" text-anchor="start">BUILT BY — the custom server binary</text>
+<rect x="686" y="162" width="508" height="78" rx="9" ry="9" fill="#ffffff" stroke="#3f6fae" stroke-width="1.6"/>
+<text x="700" y="186" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="11.5" fill="#1f2933" font-weight="bold" text-anchor="start">server/main.go</text>
+<text x="700" y="200" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">Upstream cmd/server/main.go plus one option.</text>
+<text x="700" y="213" font-family="DejaVu Sans Mono, Menlo, monospace" font-size="8.8" fill="#5b6672" font-weight="normal" text-anchor="start">tp, err := newOIDCTokenProviderFromEnv(logger)</text>
+<text x="700" y="226" font-family="DejaVu Sans Mono, Menlo, monospace" font-size="8.8" fill="#5b6672" font-weight="normal" text-anchor="start">if tp != nil { opts = append(opts, WithTokenProvider(tp)) }</text>
+<rect x="686" y="254" width="508" height="96" rx="9" ry="9" fill="#ffffff" stroke="#3f6fae" stroke-width="1.6"/>
+<text x="700" y="278" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="11.5" fill="#1f2933" font-weight="bold" text-anchor="start">temporal.NewServer  →  fx graph</text>
+<text x="700" y="292" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">Refuses to boot on a contradictory configuration:</text>
+<text x="700" y="305" font-family="DejaVu Sans Mono, Menlo, monospace" font-size="8.8" fill="#5b6672" font-weight="normal" text-anchor="start">require=true + no provider   → error</text>
+<text x="700" y="318" font-family="DejaVu Sans Mono, Menlo, monospace" font-size="8.8" fill="#5b6672" font-weight="normal" text-anchor="start">provider + no remoteClusters → error</text>
+<path d="M 940 350 L 940 415" fill="none" stroke="#3f6fae" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a-3f6fae)"/>
+<rect x="882.6" y="372" width="114.8" height="33" rx="4" fill="#ffffff" opacity="0.93"/>
+<text x="940" y="385" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="10" fill="#2f5487" font-weight="bold" text-anchor="middle">provides</text>
+<text x="940" y="398" font-family="DejaVu Sans Mono, Menlo, monospace" font-size="8.8" fill="#5b6672" font-weight="normal" text-anchor="middle">auth.TokenProvider</text>
+<rect x="50" y="130" width="540" height="340" rx="16" ry="16" fill="#faf8fd" stroke="#7a5ea8" stroke-width="1.8" stroke-dasharray="7 4"/>
+<text x="66" y="152" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="10.5" fill="#7a5ea8" font-weight="bold" text-anchor="start">CONFIGURED BY</text>
+<rect x="76" y="162" width="488" height="116" rx="9" ry="9" fill="#ffffff" stroke="#7a5ea8" stroke-width="1.5"/>
+<text x="90" y="186" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="11.5" fill="#1f2933" font-weight="bold" text-anchor="start">Environment  ·  docker-compose.yml</text>
+<text x="90" y="200" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">Absent TOKEN_URL ⇒ no provider at all.</text>
+<text x="90" y="213" font-family="DejaVu Sans Mono, Menlo, monospace" font-size="8.8" fill="#5b6672" font-weight="normal" text-anchor="start">TEMPORAL_XDC_OIDC_TOKEN_URL</text>
+<text x="90" y="226" font-family="DejaVu Sans Mono, Menlo, monospace" font-size="8.8" fill="#5b6672" font-weight="normal" text-anchor="start">TEMPORAL_XDC_OIDC_CLIENT_ID</text>
+<text x="90" y="239" font-family="DejaVu Sans Mono, Menlo, monospace" font-size="8.8" fill="#5b6672" font-weight="normal" text-anchor="start">TEMPORAL_XDC_OIDC_CLIENT_SECRET</text>
+<text x="90" y="252" font-family="DejaVu Sans Mono, Menlo, monospace" font-size="8.8" fill="#5b6672" font-weight="normal" text-anchor="start">…_SCOPE  …_AUDIENCE  …_REFRESH_SKEW</text>
+<rect x="76" y="292" width="488" height="152" rx="9" ry="9" fill="#ffffff" stroke="#7a5ea8" stroke-width="1.5"/>
+<text x="90" y="316" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="11.5" fill="#1f2933" font-weight="bold" text-anchor="start">Server config  ·  config.yaml</text>
+<text x="90" y="330" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">Two keys the plugin cannot work without —</text>
+<text x="90" y="344" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">neither of them names it:</text>
+<text x="90" y="357" font-family="DejaVu Sans Mono, Menlo, monospace" font-size="8.8" fill="#5b6672" font-weight="normal" text-anchor="start">global.authorization.remoteClusterAuth.require</text>
+<text x="90" y="370" font-family="DejaVu Sans Mono, Menlo, monospace" font-size="8.8" fill="#5b6672" font-weight="normal" text-anchor="start">  ⇒ an empty token fails the RPC</text>
+<text x="90" y="383" font-family="DejaVu Sans Mono, Menlo, monospace" font-size="8.8" fill="#5b6672" font-weight="normal" text-anchor="start">global.tls.remoteClusters.&lt;peer-host&gt;.rootCaFiles</text>
+<text x="90" y="396" font-family="DejaVu Sans Mono, Menlo, monospace" font-size="8.8" fill="#5b6672" font-weight="normal" text-anchor="start">  ⇒ marks the remote as TLS-enabled</text>
+<path d="M 590 300 L 660 300 L 660 435" fill="none" stroke="#7a5ea8" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a-7a5ea8)"/>
+<rect x="622" y="279" width="47.599999999999994" height="20" rx="4" fill="#ffffff" opacity="0.93"/>
+<text x="628" y="292" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="10" fill="#5c4682" font-weight="bold" text-anchor="start">shapes</text>
+<rect x="1290" y="130" width="560" height="400" rx="16" ry="16" fill="#f4faf4" stroke="#3f8a3f" stroke-width="1.8" stroke-dasharray="7 4"/>
+<text x="1306" y="152" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="10.5" fill="#3f8a3f" font-weight="bold" text-anchor="start">CONSUMED BY — the RPC layer</text>
+<rect x="1316" y="162" width="508" height="92" rx="9" ry="9" fill="#ffffff" stroke="#3f8a3f" stroke-width="1.6"/>
+<text x="1330" y="186" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="11.5" fill="#1f2933" font-weight="bold" text-anchor="start">rpc.RPCFactory</text>
+<text x="1330" y="200" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">Holds the provider and builds every connection</text>
+<text x="1330" y="214" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">this cluster opens to a remote cluster.</text>
+<text x="1330" y="227" font-family="DejaVu Sans Mono, Menlo, monospace" font-size="8.8" fill="#5b6672" font-weight="normal" text-anchor="start">CreateRemoteFrontendGRPCConnection(rpcAddress)</text>
+<rect x="1316" y="268" width="508" height="108" rx="9" ry="9" fill="#ffffff" stroke="#3f8a3f" stroke-width="1.6"/>
+<text x="1330" y="292" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="11.5" fill="#1f2933" font-weight="bold" text-anchor="start">auth.TokenCredentials</text>
+<text x="1330" y="306" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">A gRPC PerRPCCredentials wrapper. Caches nothing —</text>
+<text x="1330" y="320" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">that is the provider's job.</text>
+<text x="1330" y="333" font-family="DejaVu Sans Mono, Menlo, monospace" font-size="8.8" fill="#5b6672" font-weight="normal" text-anchor="start">RequireTransportSecurity() = true</text>
+<text x="1330" y="346" font-family="DejaVu Sans Mono, Menlo, monospace" font-size="8.8" fill="#5b6672" font-weight="normal" text-anchor="start">  ⇒ a plaintext dial can carry no token</text>
+<rect x="1316" y="390" width="508" height="116" rx="9" ry="9" fill="#ffffff" stroke="#3f8a3f" stroke-width="1.6"/>
+<text x="1330" y="414" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="11.5" fill="#1f2933" font-weight="bold" text-anchor="start">gRPC ClientConn → peer frontend</text>
+<text x="1330" y="428" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">GetRequestMetadata runs on every single RPC,</text>
+<text x="1330" y="442" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">so GetToken is on the hot path.</text>
+<text x="1330" y="455" font-family="DejaVu Sans Mono, Menlo, monospace" font-size="8.8" fill="#5b6672" font-weight="normal" text-anchor="start">authorization: Bearer &lt;JWT&gt;</text>
+<path d="M 1220 475 L 1290 475" fill="none" stroke="#3f8a3f" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a-3f8a3f)"/>
+<rect x="1228.4" y="446" width="53.199999999999996" height="33" rx="4" fill="#ffffff" opacity="0.93"/>
+<text x="1255" y="459" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="10" fill="#2f6b2f" font-weight="bold" text-anchor="middle">calls</text>
+<text x="1255" y="472" font-family="DejaVu Sans Mono, Menlo, monospace" font-size="8.8" fill="#5b6672" font-weight="normal" text-anchor="middle">per RPC</text>
+<rect x="660" y="720" width="560" height="250" rx="16" ry="16" fill="#fff8ec" stroke="#d18b1f" stroke-width="1.8" stroke-dasharray="7 4"/>
+<text x="676" y="742" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="10.5" fill="#d18b1f" font-weight="bold" text-anchor="start">MINTS FROM</text>
+<rect x="686" y="752" width="508" height="190" rx="9" ry="9" fill="#ffffff" stroke="#d18b1f" stroke-width="1.6"/>
+<text x="700" y="776" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="11.5" fill="#1f2933" font-weight="bold" text-anchor="start">Keycloak  ·  temporal-replication</text>
+<text x="700" y="790" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">A service account — replication has no user behind it,</text>
+<text x="700" y="804" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">so the grant is client_credentials.</text>
+<text x="700" y="818" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start"></text>
+<text x="700" y="832" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">The access token carries the one claim the peer's</text>
+<text x="700" y="846" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">authorizer looks for:</text>
+<text x="700" y="859" font-family="DejaVu Sans Mono, Menlo, monospace" font-size="8.8" fill="#5b6672" font-weight="normal" text-anchor="start">permissions: ["temporal-system:admin"]</text>
+<path d="M 750 645 L 750 720" fill="none" stroke="#d18b1f" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a-d18b1f)"/>
+<rect x="692.6" y="677" width="114.8" height="33" rx="4" fill="#ffffff" opacity="0.93"/>
+<text x="750" y="690" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="10" fill="#9a6510" font-weight="bold" text-anchor="middle">requests</text>
+<text x="750" y="703" font-family="DejaVu Sans Mono, Menlo, monospace" font-size="8.8" fill="#5b6672" font-weight="normal" text-anchor="middle">client_credentials</text>
+<path d="M 1090 720 L 1090 645" fill="none" stroke="#d18b1f" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="5 3" marker-end="url(#a-d18b1f)"/>
+<rect x="1015.8" y="677" width="148.39999999999998" height="33" rx="4" fill="#ffffff" opacity="0.93"/>
+<text x="1090" y="690" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="10" fill="#9a6510" font-weight="bold" text-anchor="middle">returns</text>
+<text x="1090" y="703" font-family="DejaVu Sans Mono, Menlo, monospace" font-size="8.8" fill="#5b6672" font-weight="normal" text-anchor="middle">access_token, expires_in</text>
+<rect x="1290" y="720" width="560" height="250" rx="16" ry="16" fill="#fdf7f7" stroke="#b3403f" stroke-width="1.8" stroke-dasharray="7 4"/>
+<text x="1306" y="742" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="10.5" fill="#b3403f" font-weight="bold" text-anchor="start">TRUSTED BY</text>
+<rect x="1316" y="752" width="508" height="190" rx="9" ry="9" fill="#ffffff" stroke="#b3403f" stroke-width="1.6"/>
+<text x="1330" y="776" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="11.5" fill="#1f2933" font-weight="bold" text-anchor="start">The peer cluster's public frontend</text>
+<text x="1330" y="790" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">Verifies the signature against the same realm's JWKS,</text>
+<text x="1330" y="804" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">maps permissions onto roles, and admits the stream.</text>
+<text x="1330" y="818" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start"></text>
+<text x="1330" y="832" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">This is the only listener that reads tokens — which is</text>
+<text x="1330" y="846" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">why replication is pointed here and not at :7236.</text>
+<text x="1330" y="859" font-family="DejaVu Sans Mono, Menlo, monospace" font-size="8.8" fill="#5b6672" font-weight="normal" text-anchor="start">StreamWorkflowReplicationMessages → allowed</text>
+<path d="M 1570 530 L 1570 720" fill="none" stroke="#b3403f" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a-b3403f)"/>
+<rect x="1507.0" y="607" width="126.0" height="33" rx="4" fill="#ffffff" opacity="0.93"/>
+<text x="1570" y="620" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="10" fill="#8c2f2e" font-weight="bold" text-anchor="middle">carries the token to</text>
+<text x="1570" y="633" font-family="DejaVu Sans Mono, Menlo, monospace" font-size="8.8" fill="#5b6672" font-weight="normal" text-anchor="middle">gRPC over TLS</text>
+<rect x="50" y="720" width="540" height="250" rx="9" ry="9" fill="#fafbfc" stroke="#8a94a3" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="64" y="744" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="12" fill="#1f2933" font-weight="bold" text-anchor="start">NOT this plugin's job</text>
+<text x="64" y="758" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">Inbound JWT verification — that is jwtKeyProvider plus the</text>
+<text x="64" y="772" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">default claim mapper, a separate path with its own config.</text>
+<text x="64" y="786" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start"></text>
+<text x="64" y="800" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">The internal frontend (:7236) — it checks no credential at</text>
+<text x="64" y="814" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">all, so no token would ever be consulted there.</text>
+<text x="64" y="828" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start"></text>
+<text x="64" y="842" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">Client traffic from people, the CLI and SDKs — those callers</text>
+<text x="64" y="856" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">bring their own tokens; the provider is only ever used for</text>
+<text x="64" y="870" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#5b6672" font-weight="normal" text-anchor="start">connections this cluster originates to a peer.</text>
+<text x="40" y="994" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="9.4" fill="#8a94a3" font-weight="normal" text-anchor="start">Component relationships as wired in this repo; the step-by-step mechanism is in docs/tokenprovider.png, and the whole stack in docs/architecture.png.</text>
+</svg>
