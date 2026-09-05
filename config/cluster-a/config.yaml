@@ -1,0 +1,290 @@
+# enable-template
+#
+# Temporal Server configuration for cluster-a.
+#
+# The `# enable-template` marker on the first line makes the server run this
+# file through Go's text/template with an `env` function, so credentials and
+# host names stay in .env / docker-compose.yml. Everything cluster specific -
+# the cluster name, its failover version, its certificates, its peer - is
+# written out literally, because that is the part worth reading side by side
+# with config/cluster-b/config.yaml.
+#
+# The server image has a built-in config template driven entirely by
+# environment variables, but its `clusterMetadata` block is hardcoded to a
+# single non-replicating cluster and it has no way to express per-remote-cluster
+# TLS. So each cluster runs from an explicit config file instead, selected with
+# TEMPORAL_SERVER_CONFIG_FILE_PATH.
+
+log:
+    stdout: true
+    level: {{ default "info" (env "LOG_LEVEL") }}
+
+persistence:
+    numHistoryShards: {{ default "4" (env "NUM_HISTORY_SHARDS") }}
+    defaultStore: default
+    visibilityStore: es-visibility
+    datastores:
+        default:
+            sql:
+                pluginName: "postgres12"
+                databaseName: "{{ default "temporal" (env "DBNAME") }}"
+                connectAddr: "{{ env "POSTGRES_SEEDS" }}:{{ default "5432" (env "DB_PORT") }}"
+                connectProtocol: "tcp"
+                user: "{{ env "POSTGRES_USER" }}"
+                password: "{{ env "POSTGRES_PWD" }}"
+                maxConns: 20
+                maxIdleConns: 20
+                maxConnLifetime: 1h
+        es-visibility:
+            elasticsearch:
+                version: {{ default "v7" (env "ES_VERSION") }}
+                url:
+                    scheme: {{ default "http" (env "ES_SCHEME") }}
+                    host: "{{ env "ES_SEEDS" }}:{{ default "9200" (env "ES_PORT") }}"
+                indices:
+                    visibility: "{{ default "temporal_visibility_v1_dev" (env "ES_VIS_INDEX") }}"
+
+global:
+    membership:
+        maxJoinDuration: 30s
+        broadcastAddress: "{{ default "" (env "TEMPORAL_BROADCAST_ADDRESS") }}"
+    pprof:
+        port: {{ default "0" (env "PPROF_PORT") }}
+
+    tls:
+        refreshInterval: 0s
+        expirationChecks:
+            warningWindow: 0s
+            errorWindow: 0s
+            checkInterval: 0s
+
+        # ------------------------------------------------------------------
+        # internode: history <-> matching <-> internal-frontend inside this
+        # cluster. Genuinely internal traffic - the peer cluster's replication
+        # stream does not arrive here, it arrives on the public frontend.
+        #
+        # TLS but not mutual TLS. Nothing in this stack presents a client
+        # certificate, so what this buys is an encrypted channel and proof of
+        # the *server's* identity - not of the caller's.
+        # ------------------------------------------------------------------
+        internode:
+            server:
+                requireClientAuth: false
+                certFile: {{ env "CERTS_DIR" }}/cluster-a/internode.pem
+                keyFile: {{ env "CERTS_DIR" }}/cluster-a/internode.key
+            client:
+                # Services find each other by container IP through the
+                # membership ring, and no certificate can carry every IP the
+                # Docker bridge might hand out. Pinning serverName makes Go
+                # verify against this name instead of the dialed address, so
+                # host verification stays on.
+                serverName: temporal-a.internal
+                rootCaFiles:
+                    - {{ env "CERTS_DIR" }}/ca/ca.pem
+
+        # ------------------------------------------------------------------
+        # frontend: the public gRPC port. The Web UI, the CLI, SDK clients and
+        # cluster-b's replication stream all arrive here.
+        #
+        # requireClientAuth is off, so TLS on this port encrypts the connection
+        # and proves this cluster's identity to the caller, and stops there.
+        # Callers are identified by their Keycloak JWT, which works here and
+        # only here: this is the one listener that runs the real claim mapper
+        # and authorizer, so a token is actually verified rather than assumed.
+        # Replication is admitted by exactly the same machinery as everyone
+        # else, on a token carrying temporal-system:admin.
+        # ------------------------------------------------------------------
+        frontend:
+            server:
+                requireClientAuth: false
+                certFile: {{ env "CERTS_DIR" }}/cluster-a/frontend.pem
+                keyFile: {{ env "CERTS_DIR" }}/cluster-a/frontend.key
+            client:
+                serverName: temporal
+                rootCaFiles:
+                    - {{ env "CERTS_DIR" }}/ca/ca.pem
+
+        # ------------------------------------------------------------------
+        # remoteClusters: outbound TLS for replication traffic. The map is
+        # keyed by the *host name* of the remote cluster - the host part of the
+        # address passed to `temporal operator cluster upsert` - not by its
+        # cluster name. Wildcard keys ("*") are matched too, longest literal
+        # prefix first.
+        #
+        # There is no `server` section: this cluster presents no client
+        # certificate to its peer. Replication authenticates with the JWT that
+        # the TokenProvider in server/ mints, so all this block has to say is
+        # how to verify the peer.
+        #
+        # serverName is checked against the peer's certificate, so it must be
+        # one of that certificate's SANs - the peer's frontend name, not
+        # necessarily the address dialed.
+        #
+        # rootCaFiles must stay. Its presence is what marks TLS as enabled for
+        # this remote (config.GroupTLS.IsClientEnabled checks exactly this).
+        # Remove it and the dial falls back to plaintext, and the bearer
+        # credentials refuse to attach a token to an unencrypted connection -
+        # so every cross-cluster RPC fails.
+        # ------------------------------------------------------------------
+        remoteClusters:
+            temporal-b:
+                client:
+                    serverName: temporal-b
+                    rootCaFiles:
+                        - {{ env "CERTS_DIR" }}/ca/ca.pem
+
+    metrics:
+        prometheus:
+            timerType: histogram
+            listenAddress: "{{ default "0.0.0.0:8002" (env "PROMETHEUS_ENDPOINT") }}"
+
+    authorization:
+        # Inbound: verify every JWT on the public frontend against Keycloak's
+        # JWKS, turn its `permissions` claim into roles, and let the default
+        # authorizer decide. This is the half of the story that needs no custom
+        # code - it is all configuration.
+        jwtKeyProvider:
+            keySourceURIs:
+                - {{ env "TEMPORAL_JWT_KEY_SOURCE1" }}
+            refreshInterval: {{ default "1m" (env "TEMPORAL_JWT_KEY_REFRESH") }}
+        permissionsClaimName: permissions
+        authorizer: default
+        claimMapper: default
+
+        # Outbound: fail a cross-cluster RPC that has no token rather than
+        # letting it leave bare. It also refuses to start the server when no
+        # TokenProvider was compiled in, which turns running a stock
+        # temporalio/server image here into an immediate boot failure instead
+        # of silently unauthenticated replication.
+        remoteClusterAuth:
+            require: true
+
+services:
+    frontend:
+        rpc:
+            grpcPort: 7233
+            membershipPort: 6933
+            bindOnIP: "{{ default "127.0.0.1" (env "BIND_ON_IP") }}"
+            httpPort: 7243
+
+    # The internal frontend exists for this cluster's own system workers, which
+    # have no user behind them and no token to carry. Temporal wires it with a
+    # claim mapper that treats every caller as the server itself, so it grants
+    # system admin without looking at credentials at all. Declaring it here is
+    # also what makes the server route system workers to it instead of to
+    # publicClient (see config.Validate: the two are mutually exclusive).
+    #
+    # That used to be backstopped by internode mTLS. It is not any more. With
+    # client certificates gone from the whole stack, anything that can open a
+    # connection to 7236 gets system admin on this cluster. Nothing publishes
+    # the port to the host, so the blast radius is whatever else sits on
+    # temporal-network - acceptable for a local lab, and the first thing to fix
+    # in anything that is not one.
+    #
+    # cluster-b's replication stream deliberately does NOT land here: a
+    # listener that ignores tokens would make replication's JWT decorative.
+    internal-frontend:
+        rpc:
+            grpcPort: 7236
+            membershipPort: 6936
+            bindOnIP: "{{ default "127.0.0.1" (env "BIND_ON_IP") }}"
+            httpPort: 7246
+
+    matching:
+        rpc:
+            grpcPort: 7235
+            membershipPort: 6935
+            bindOnIP: "{{ default "127.0.0.1" (env "BIND_ON_IP") }}"
+
+    history:
+        rpc:
+            grpcPort: 7234
+            membershipPort: 6934
+            bindOnIP: "{{ default "127.0.0.1" (env "BIND_ON_IP") }}"
+
+    worker:
+        rpc:
+            grpcPort: 7239
+            membershipPort: 6939
+            bindOnIP: "{{ default "127.0.0.1" (env "BIND_ON_IP") }}"
+
+# ----------------------------------------------------------------------------
+# Cross-cluster replication.
+#
+# enableGlobalNamespace switches the replication machinery on. Both clusters
+# must agree on failoverVersionIncrement, and each must claim a distinct
+# initialFailoverVersion below that increment: cluster-a takes 1, cluster-b
+# takes 2. Failover versions are minted as
+# `initialFailoverVersion + n * failoverVersionIncrement`, so that pair is what
+# lets either side look at a history event and decide which cluster's version
+# wins after a failover. Reusing a version across clusters, or setting an
+# initial version >= the increment, makes those namespaces collide.
+#
+# masterClusterName is this cluster's own name, on both clusters. Only the
+# master may register or reconfigure a global namespace, and the name must
+# resolve inside clusterInformation below or cluster.NewMetadata panics at
+# boot. Since clusterInformation lists only the local cluster, self is the only
+# value that can work - this matches how the server's own XDC test suite is
+# configured (tests/xdc/base.go). The cost is that each side will accept
+# `namespace create --global`, so pick one cluster and stick to it.
+#
+# Only the local cluster is listed. Remote clusters are NOT configured here:
+# the server logs "All remote cluster settings under
+# ClusterMetadata.ClusterInformation config will be ignored" and reads them
+# from the cluster_metadata table instead, which `temporal operator cluster
+# upsert` populates at runtime. See scripts/connect-clusters.sh.
+#
+# rpcAddress is what this cluster advertises to its peer, and therefore what
+# the peer's replication stream dials. It points at the *public* frontend
+# (7233), not the internal one, because the public frontend is the only
+# listener that validates a token.
+# ----------------------------------------------------------------------------
+clusterMetadata:
+    enableGlobalNamespace: true
+    failoverVersionIncrement: 10
+    masterClusterName: "cluster-a"
+    currentClusterName: "cluster-a"
+    clusterInformation:
+        cluster-a:
+            enabled: true
+            initialFailoverVersion: 1
+            rpcName: "frontend"
+            rpcAddress: "temporal:7233"
+            httpAddress: "temporal:7243"
+
+# Forward the API calls that must run against the active cluster (workflow
+# starts, signals, task polls) when they arrive at the standby side.
+dcRedirectionPolicy:
+    policy: "selected-apis-forwarding"
+
+archival:
+  history:
+    state: "enabled"
+    enableRead: true
+    provider:
+      filestore:
+        fileMode: "0666"
+        dirMode: "0766"
+  visibility:
+    state: "enabled"
+    enableRead: true
+    provider:
+      filestore:
+        fileMode: "0666"
+        dirMode: "0766"
+
+namespaceDefaults:
+  archival:
+    history:
+      state: "disabled"
+      URI: "file:///tmp/temporal_archival/development"
+    visibility:
+      state: "disabled"
+      URI: "file:///tmp/temporal_vis_archival/development"
+
+# No publicClient: with an internal frontend declared above, system workers use
+# that instead, and config.Validate rejects setting both.
+
+dynamicConfigClient:
+    filepath: "{{ default "/etc/temporal/config/dynamicconfig/development-sql.yaml" (env "DYNAMIC_CONFIG_FILE_PATH") }}"
+    pollInterval: "60s"

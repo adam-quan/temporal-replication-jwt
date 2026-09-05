@@ -1,0 +1,308 @@
+# cluster-a, plus the services both clusters share: Keycloak, Prometheus and
+# Grafana. Bring this up first, then docker-compose.cluster-b.yml.
+#
+# See README.md for the full walkthrough. In short:
+#
+#   ./scripts/generate-certs.sh
+#   docker compose up -d keycloak && ./scripts/setup-keycloak.sh
+#   docker compose up -d
+#   docker compose -f docker-compose.cluster-b.yml up -d
+#   ./scripts/connect-clusters.sh
+
+services:
+
+  elasticsearch:
+    container_name: temporal-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - xpack.security.enabled=false
+    image: elasticsearch:${ELASTICSEARCH_VERSION}
+    ports:
+      - published: 9200
+        target: 9200
+    networks:
+      - temporal-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=1s || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 30s
+
+  postgresql:
+    container_name: temporal-postgresql
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER}
+    image: postgres:${POSTGRESQL_VERSION}
+    expose:
+      - ${POSTGRES_DEFAULT_PORT}
+    volumes:
+      - /var/lib/postgresql/data
+    networks:
+      - temporal-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 30s
+
+  temporal-setup:
+    image: temporalio/admin-tools:${TEMPORAL_ADMINTOOLS_VERSION}
+    container_name: temporal-setup
+    restart: on-failure:6
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      - DB=postgres12
+      - DB_PORT=${POSTGRES_DEFAULT_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PWD=${POSTGRES_PASSWORD}
+      - POSTGRES_SEEDS=postgresql
+      - SQL_PASSWORD=${POSTGRES_PASSWORD}
+      - ES_HOST=elasticsearch
+      - ES_PORT=9200
+      - ES_SCHEME=http
+      - ES_VERSION=v7
+      - ES_VISIBILITY_INDEX=temporal_visibility_v1_dev
+    networks:
+      - temporal-network
+    volumes:
+      - ./scripts:/scripts
+    entrypoint: ["/bin/sh"]
+    command: /scripts/setup-postgres-es.sh
+
+  temporal:
+    container_name: temporal
+    depends_on:
+      # Wait for the schema to be fully applied, not merely for the setup
+      # container to have started: the server refuses to boot against a
+      # half-migrated database ("Expected version 1.19 ... Actual version 0.0")
+      # and would otherwise crash-loop until the migration caught up.
+      temporal-setup:
+        condition: service_completed_successfully
+      # The token provider mints its first token lazily, on the first outbound
+      # cross-cluster call, so this is about start-up noise rather than
+      # correctness - but a Keycloak that is already listening saves a round of
+      # retries in the log.
+      keycloak:
+        condition: service_started
+    environment:
+      # The image's built-in config template hardcodes a single
+      # non-replicating cluster and cannot express per-remote-cluster TLS, so
+      # this cluster runs from an explicit config file. Everything below feeds
+      # that file's `{{ env "..." }}` placeholders.
+      - TEMPORAL_SERVER_CONFIG_FILE_PATH=/etc/temporal/config/config.yaml
+      - CERTS_DIR=/etc/temporal/certs
+      - POSTGRES_SEEDS=postgresql
+      - DB_PORT=${POSTGRES_DEFAULT_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PWD=${POSTGRES_PASSWORD}
+      - ES_SEEDS=elasticsearch
+      - ES_PORT=9200
+      - ES_SCHEME=http
+      - ES_VERSION=v7
+      - ES_VIS_INDEX=temporal_visibility_v1_dev
+      - DYNAMIC_CONFIG_FILE_PATH=/etc/temporal/config/dynamicconfig/development-sql.yaml
+      - PROMETHEUS_ENDPOINT=0.0.0.0:8002
+      # internal-frontend is not in the default service list, and this stack
+      # needs it: config.yaml declares it, which is what routes this cluster's
+      # own system workers there instead of to a publicClient they would have
+      # no token for.
+      - TEMPORAL_SERVICES=frontend,matching,worker,history,internal-frontend
+      # Inbound JWT verification: Keycloak's JWKS, which the default claim
+      # mapper checks every token on the public frontend against.
+      - TEMPORAL_JWT_KEY_SOURCE1=http://keycloak:9080/realms/temporal/protocol/openid-connect/certs
+      # Outbound: read by the TokenProvider compiled into the image below. This
+      # is what replication authenticates as. Without a token endpoint here the
+      # server refuses to start, because config.yaml sets
+      # global.authorization.remoteClusterAuth.require.
+      - TEMPORAL_XDC_OIDC_TOKEN_URL=http://keycloak:9080/realms/temporal/protocol/openid-connect/token
+      - TEMPORAL_XDC_OIDC_CLIENT_ID=temporal-replication
+      - TEMPORAL_XDC_OIDC_CLIENT_SECRET=${KEYCLOAK_REPLICATION_SECRET}
+    # Not temporalio/server: temporal.WithTokenProvider is a Go option, so the
+    # replication token provider has to be compiled in. See server/.
+    build: ./server
+    image: temporal-xdc-jwt/server:${TEMPORAL_VERSION}
+    ports:
+      - published: 7233
+        target: 7233
+      - published: 8002
+        target: 8002
+    restart: on-failure
+    volumes:
+      - ./dynamicconfig:/etc/temporal/config/dynamicconfig
+      - ./config/cluster-a/config.yaml:/etc/temporal/config/config.yaml:ro
+      - ./certs:/etc/temporal/certs:ro
+    networks:
+      - temporal-network
+
+  temporal-create-namespace:
+    image: temporalio/admin-tools:${TEMPORAL_ADMINTOOLS_VERSION}
+    container_name: temporal-create-namespace
+    restart: on-failure:5
+    depends_on:
+      - temporal
+      - keycloak
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - DEFAULT_NAMESPACE=default
+      # The server validates a JWT on every call to the public frontend, so the
+      # script mints one with the client credentials grant.
+      - KEYCLOAK_URL=http://keycloak:9080
+      - KEYCLOAK_REALM=temporal
+      - KEYCLOAK_CLIENT_ID=temporal-app
+      - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
+      # The frontend serves TLS but asks for no client certificate, so the CA
+      # is all the CLI needs on top of its JWT.
+      - TEMPORAL_TLS_CA_PATH=/etc/temporal/certs/ca/ca.pem
+      - TEMPORAL_TLS_SERVER_NAME=temporal
+    networks:
+      - temporal-network
+    volumes:
+      - ./scripts:/scripts
+      - ./certs:/etc/temporal/certs:ro
+    entrypoint: ["/bin/sh"]
+    command: /scripts/create-namespace.sh
+
+  temporal-admin-tools:
+    container_name: temporal-admin-tools
+    depends_on:
+      - temporal
+    environment:
+      # Public frontend: TLS, and every call also needs a JWT. Mint one with
+      # `. /scripts/token.sh` inside the container, or point --address at
+      # temporal:7236 (the internal frontend), which asks for nothing at all.
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CLI_ADDRESS=temporal:7233
+      - TEMPORAL_TLS_CA_PATH=/etc/temporal/certs/ca/ca.pem
+      - TEMPORAL_TLS_SERVER_NAME=temporal
+      - KEYCLOAK_URL=http://keycloak:9080
+      - KEYCLOAK_REALM=temporal
+      - KEYCLOAK_CLIENT_ID=temporal-app
+      - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
+    image: temporalio/admin-tools:${TEMPORAL_ADMINTOOLS_VERSION}
+    stdin_open: true
+    tty: true
+    networks:
+      - temporal-network
+    volumes:
+      - ./certs:/etc/temporal/certs:ro
+      - ./scripts:/scripts
+
+  temporal-ui:
+    container_name: temporal-ui
+    depends_on:
+      - temporal
+    environment:
+      - TEMPORAL_CORS_ORIGINS=http://localhost:3000
+      - TEMPORAL_CSRF_COOKIE_INSECURE=true
+      - TEMPORAL_CLI_ADDRESS=temporal:7233
+      - TEMPORAL_ADDRESS=temporal:7233
+      # The frontend validates a JWT on every call and the UI has no token of
+      # its own, so without SSO every API call it makes comes back
+      # "Request unauthorized" and the UI renders an empty/not-found page.
+      # Signing users in against the same realm gives the UI a token to
+      # forward. Sign in with temporal / temporal (see scripts/setup-keycloak.sh).
+      #
+      # PROVIDER_URL is the container-side address: the UI does OIDC discovery
+      # and the code-for-token exchange itself. The browser is redirected to
+      # localhost:9080 instead, which the discovery document takes care of --
+      # see KC_HOSTNAME on the keycloak service.
+      - TEMPORAL_AUTH_ENABLED=true
+      - TEMPORAL_AUTH_PROVIDER_URL=http://keycloak:9080/realms/temporal
+      # ISSUER_URL is what the token is expected to be issued by, and it is
+      # deliberately not PROVIDER_URL. The UI fetches the discovery document
+      # over the Docker network (keycloak:9080) but Keycloak advertises
+      # itself as localhost:9080 so the browser redirect works, and the OIDC
+      # client rejects that mismatch unless the expected issuer is stated
+      # here. Without it the UI exits on boot with "issuer did not match".
+      - TEMPORAL_AUTH_ISSUER_URL=http://localhost:9080/realms/temporal
+      - TEMPORAL_AUTH_CLIENT_ID=temporal-app
+      - TEMPORAL_AUTH_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
+      - TEMPORAL_AUTH_CALLBACK_URL=http://localhost:8080/auth/sso/callback
+      - TEMPORAL_AUTH_SCOPES=openid,profile,email
+      # Trust root for the frontend's server certificate. No client
+      # certificate: the UI authenticates its users through Keycloak instead.
+      - TEMPORAL_TLS_CA=/etc/temporal/certs/ca/ca.pem
+      - TEMPORAL_TLS_ENABLE_HOST_VERIFICATION=true
+      - TEMPORAL_TLS_SERVER_NAME=temporal
+    image: temporalio/ui:${TEMPORAL_UI_VERSION}
+    ports:
+      - 8080:8080
+    networks:
+      - temporal-network
+    volumes:
+      - ./certs:/etc/temporal/certs:ro
+
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:v2.37.0
+    ports:
+      - published: 9090
+        target: 9090
+    volumes:
+      - type: bind
+        source: ./deployment/prometheus/config.yml
+        target: /etc/prometheus/prometheus.yml
+    networks:
+      - temporal-network
+
+  grafana:
+    container_name: grafana
+    image: grafana/grafana:latest
+    build: './deployment/grafana'
+    environment:
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+    ports:
+      - published: 8085
+        target: 3000
+    volumes:
+      - type: bind
+        source: ./deployment/grafana/provisioning/datasources
+        target: /etc/grafana/provisioning/datasources
+    depends_on:
+      - prometheus
+    networks:
+      - temporal-network
+
+  # Shared by both clusters: one realm issues the tokens that people, SDK
+  # clients and the replication streams all authenticate with.
+  keycloak:
+    container_name: keycloak
+    image: keycloak/keycloak:${KEYCLOAK_VERSION}
+    command: start-dev --http-port 9080
+    environment:
+      # Both spellings: KC_BOOTSTRAP_ADMIN_* is the current one, KEYCLOAK_ADMIN_*
+      # is still honoured and keeps this working on older Keycloak images.
+      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
+      - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+      # One issuer, two audiences. The Web UI needs the same OIDC issuer to
+      # work from two places at once: the browser can only reach Keycloak as
+      # localhost:9080, while the UI container can only reach it as
+      # keycloak:9080. These two settings make the discovery document say both
+      # -- front-channel URLs (the browser redirect) are pinned to
+      # localhost:9080, while back-channel URLs (the UI's own code-for-token
+      # exchange) are derived from whatever host asked, i.e. keycloak:9080.
+      # Without this the UI either cannot discover the issuer or redirects the
+      # browser somewhere it cannot resolve.
+      - KC_HOSTNAME=http://localhost:9080
+      - KC_HOSTNAME_BACKCHANNEL_DYNAMIC=true
+    ports:
+      - 9080:9080
+    networks:
+      - temporal-network
+
+networks:
+  temporal-network:
+    driver: bridge
+    name: temporal-network
